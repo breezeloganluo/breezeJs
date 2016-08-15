@@ -281,6 +281,10 @@ define(function(require, exports, module) {
 			var d = Number(expResult[1]);
 			result.setSeconds(d);
 		}
+		//覆盖掉原来的tetTime方法，让他变成字符串
+		result.getTimeStr =  function(){
+			return String(this.getTime());
+		}
 		return result;
 	}
 	

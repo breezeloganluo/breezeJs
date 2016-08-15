@@ -694,7 +694,202 @@ define(function(require, exports, module) {
 	*/
 	_result.getFormValue = function(formid) {
 		var result ={};
-		$("#"+formid).find("input").each(function(){
+		var formObj = formid;
+		if (/string/ig.test(typeof(formObj))){
+			formObj = $("#"+formid);
+		}
+		formObj.find("input").each(function(){
+			if (this.name == ""){
+				return;
+			}
+			if (/checkbox/i.test(this.type) && !this.checked){
+				return;
+			}
+			if (/radio/i.test(this.type) && !this.checked){
+				return;
+			}
+			var execResult = /(\w+)\[(\d*)\]\.?(\w*)/.exec(this.name);
+			if (execResult != null){
+				var key1 = execResult[1];
+				var idx = execResult[2];
+				var key2 = execResult[3];
+				if (!result[key1]){
+					result[key1] = [];
+				}
+				var one = (idx!="" && idx!=null) && result[key1][Number(idx)] || {};
+
+				if (key2){
+					one[key2] = this.value;
+				}
+				else{
+					one= this.value;
+				}
+
+				if (idx == null || idx==""){
+					result[key1].push(one);
+				}else{
+					result[key1][Number(idx)] = one;
+				}
+
+				return;
+			}
+			var names = this.name.split(".");
+			var baseObj = result;
+			for (var i =0;i<names.length;i++){
+				if (i == names.length-1){
+					if (baseObj[names[i]]){
+						if (baseObj[names[i]].length>=1 && baseObj[names[i]].push){
+							baseObj[names[i]].push(this.value);
+						}
+						else{
+							var tmp = baseObj[names[i]] ;
+							baseObj[names[i]] = [];
+							baseObj[names[i]].push(tmp);
+							baseObj[names[i]].push(this.value);
+						}
+					}else{
+						baseObj[names[i]] = this.value;
+					}
+					
+					break;
+				}
+				if (!baseObj[names[i]]){
+					baseObj[names[i]] = {};
+				}
+				baseObj = baseObj[names[i]];
+			}
+		});
+		formObj.find("select").each(function(){
+			if (this.name == ""){
+				return;
+			}
+			var execResult = /(\w+)\[(\d*)\]\.?(\w*)/.exec(this.name);
+			if (execResult != null){
+				var key1 = execResult[1];
+				var idx = execResult[2];
+				var key2 = execResult[3];
+				if (!result[key1]){
+					result[key1] = [];
+				}
+				var one = (idx!="" && idx!=null) && result[key1][Number(idx)] || {};
+
+				if (key2){
+					one[key2] = this.value;
+				}
+				else{
+					one= this.value;
+				}
+
+				if (idx == null || idx==""){
+					result[key1].push(one);
+				}else{
+					result[key1][Number(idx)] = one;
+				}
+
+				return;
+			}
+			var names = this.name.split(".");
+			var baseObj = result;
+			for (var i =0;i<names.length;i++){
+				if (i == names.length-1){
+					if (baseObj[names[i]]){
+						if (baseObj[names[i]].length>=1 && baseObj[names[i]].push){
+							baseObj[names[i]].push(this.value);
+						}
+						else{
+							var tmp = baseObj[names[i]] ;
+							baseObj[names[i]] = [];
+							baseObj[names[i]].push(tmp);
+							baseObj[names[i]].push(this.value);
+						}
+					}else{
+						baseObj[names[i]] = this.value;
+					}
+					break;
+				}
+				if (!baseObj[names[i]]){
+					baseObj[names[i]] = {};
+				}
+				baseObj = baseObj[names[i]];
+			}
+		});
+		
+		formObj.find("textarea").each(function(){
+			if (this.name == ""){
+				return;
+			}
+			var execResult = /(\w+)\[(\d*)\]\.?(\w*)/.exec(this.name);
+			if (execResult != null){
+				var key1 = execResult[1];
+				var idx = execResult[2];
+				var key2 = execResult[3];
+				if (!result[key1]){
+					result[key1] = [];
+				}
+				var one = (idx!="" && idx!=null) && result[key1][Number(idx)] || {};
+
+				if (key2){
+					one[key2] = this.value;
+				}
+				else{
+					one= this.value;
+				}
+
+				if (idx == null || idx==""){
+					result[key1].push(one);
+				}else{
+					result[key1][Number(idx)] = one;
+				}
+
+				return;
+			}
+			var names = this.name.split(".");
+			var baseObj = result;
+			for (var i =0;i<names.length;i++){
+				if (i == names.length-1){
+					if (baseObj[names[i]]){
+						if (baseObj[names[i]].length>=1 && baseObj[names[i]].push){
+							baseObj[names[i]].push(this.value);
+						}
+						else{
+							var tmp = baseObj[names[i]] ;
+							baseObj[names[i]] = [];
+							baseObj[names[i]].push(tmp);
+							baseObj[names[i]].push(this.value);
+						}
+					}else{
+						baseObj[names[i]] = this.value;
+					}
+					break;
+				}
+				if (!baseObj[names[i]]){
+					baseObj[names[i]] = {};
+				}
+				baseObj = baseObj[names[i]];
+			}
+			
+		});
+		
+		
+		
+		return result; 
+	}
+	
+	
+	/**
+	* @function
+	* @memberOf lang
+	* @name setFormValue
+	* @desctiption 根据传入的表单的id，将转成json格式的数据设置到数据中去
+	* @param formid 原始的对象
+	*/
+	_result.setFormValue = function(formid,data) {
+		var result ={};
+		var formObj = formid;
+		if (/string/ig.test(typeof(formObj))){
+			formObj = $("#"+formid);
+		}
+		formObj.find("input").each(function(){
 			if (this.name == ""){
 				return;
 			}
@@ -703,69 +898,72 @@ define(function(require, exports, module) {
 				var key1 = execResult[1];
 				var idx = execResult[2];
 				var key2 = execResult[3];
-				if (!result[key1]){
-					result[key1] = [];
-				}
-				if(!result[key1][Number(idx)]){
-					result[key1][Number(idx)] = {};
-				}
+
+
 				if (key2){
-					result[key1][Number(idx)][key2] = this.value;
+					this.value = eval("(data['"+key1+"']["+idx+"]['"+key2+"']");
 				}
 				else{
-					result[key1][Number(idx)]= this.value;
+					this.value = eval("(data['"+key1+"']["+idx+"]");
 				}
 				
 				return;
 			}
-			result[this.name]=this.value;
+			this.value = eval("(data['"+this.name+"'])");
 		});
-		$("#"+formid).find("select").each(function(){
+		formObj.find("select").each(function(){
+			if (this.name == ""){
+				return;
+			}
 			var execResult = /(\w+)\[(\d+)\]\.?(\w*)/.exec(this.name);
 			if (execResult != null){
 				var key1 = execResult[1];
 				var idx = execResult[2];
 				var key2 = execResult[3];
-				if (!result[key1]){
-					result[key1] = [];
-				}
-				if(!result[key1][Number(idx)]){
-					result[key1][Number(idx)] = {};
-				}
+
+
 				if (key2){
-					result[key1][Number(idx)][key2] = this.value;
+					this.value = eval("(data['"+key1+"']["+idx+"]['"+key2+"']");
 				}
 				else{
-					result[key1][Number(idx)]= this.value;
+					this.value = eval("(data['"+key1+"']["+idx+"]");
 				}
-				return;
+			}else{
+				this.value = eval("(data['"+this.name+"'])");
 			}
-			result[this.name]=this.value;
+			var value = this.value;
+			
+			$(this).find("option").each(
+				function(){
+					if (this.value == value){
+						this.checked = true;
+					}
+				}
+			);
 		});
 		
-		$("#"+formid).find("textarea").each(function(){
+		formObj.find("textarea").each(function(){
+			if (this.name == ""){
+				return;
+			}
 			var execResult = /(\w+)\[(\d+)\]\.?(\w*)/.exec(this.name);
 			if (execResult != null){
 				var key1 = execResult[1];
 				var idx = execResult[2];
 				var key2 = execResult[3];
-				if (!result[key1]){
-					result[key1] = [];
-				}
-				if(!result[key1][Number(idx)]){
-					result[key1][Number(idx)] = {};
-				}
+
+
 				if (key2){
-					result[key1][Number(idx)][key2] = this.value;
+					this.value = eval("(data['"+key1+"']["+idx+"]['"+key2+"']");
 				}
 				else{
-					result[key1][Number(idx)]= this.value;
+					this.value = eval("(data['"+key1+"']["+idx+"]");
 				}
+				
 				return;
 			}
-			result[this.name]=this.value;
+			this.value = eval("(data['"+this.name+"'])");
 		});
-		return result; 
 	}
 
 	return _result;

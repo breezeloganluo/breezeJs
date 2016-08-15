@@ -58,6 +58,8 @@
 * @version 0.57 2016-04-30罗光瑜修改，createApp后，dom参数支持字符串，这个时候就用jquery去获取
 * @version 0.67 2016-04-30罗光瑜修改，修复app在没有视图情况下show函数会出错
 * @version 0.68 2016-04-30罗光瑜修改，在show方法，如果show的节点不在本体中，就会show到外部，而外部必须加app名前缀，对其是个较大限制，现在增加一个不用加前缀的方式
+* @version 0.69 2016-07-23罗光瑜修改，mask的viewid如果不存在，那么src就用户id本身
+* @version 0.70 2016-07-30罗光瑜修改 FireEvent的参数如果是有()之类的特殊字符，就会挂掉，这里show函数直接处理掉
 */ 
 
 /**
@@ -322,12 +324,32 @@ define(function(require, exports, module) {
 					function(all,a,b,c){
 						return a+b.replace(/\$%7B/ig,function(a){return "${"}).replace(/%7D/ig,"}")+c;
 					});
-			var htmlStr = _useAPI.lang.parserTemplate(src,__data,showAPIObj);
-			//进行事件替换
-			htmlStr = htmlStr.replace(/([";]?)\s*FireEvent\.(\w+)\(([^\)]*)\)\s*([;"]?)/ig,function(a,b,c,d,e){
-				var result = b+"var args=[" + d + "];";
+			//2016-07-30 FireEvent在模板运行后在转换就处理不了FireEvent内部有变量转变出来的特殊字符，必须在转换前处理，转换后再处理一次
+			src = src.replace(/([";]?)\s*FireEvent\.(\w+)\(([^\)]*)\)\s*([;"]?)/ig,function(a,b,c,d,e){
+			var param = d.replace(/\$\s*\{[^\}]+\}/ig,function(a){
+				return "@###!"+a+"!###@";
+			});
+				var result = b+"var args=[" + param + "];";
 				result += ("var app = FW.getAPP('" + _$app.id + "');");
 				result += ("app.FireEvent." + c + ".apply(app,args)" + e);
+				return result;
+			});
+			var htmlStr = _useAPI.lang.parserTemplate(src,__data,showAPIObj);
+			//进行事件替换
+			htmlStr = htmlStr.replace(/@###!([\s\S]*?)!###@/ig,function(a,b){
+				//如果为空，返回空字符
+				value = b;
+				if (value == null) {
+					return "";
+				}
+				//直接转义
+				var result = value.replace(/&/g, "&amp;");
+				result = result.replace(/</g, "&lt;");
+				result = result.replace(/>/g, "&gt;");
+				result = result.replace(/"/g, "&quot;");
+				result = result.replace(/'/g, "&#039;");
+				result = result.replace(/\(/g,"&#040");
+				result = result.replace(/\)/g,"&#041");
 				return result;
 			});
 			//2014-08-21 罗光瑜修改，img增加bzImg属性，使得该图片在show的时候，用这个属性替代原来的src属性
@@ -405,12 +427,32 @@ define(function(require, exports, module) {
 					function(all,a,b,c){
 						return a+b.replace(/\$%7B/ig,function(a){return "${"}).replace(/%7D/ig,"}")+c;
 					});
-			var htmlStr = _useAPI.lang.parserTemplate(src,__data,showAPIObj);
-			//进行事件替换
-			htmlStr = htmlStr.replace(/([";]?)\s*FireEvent\.(\w+)\(([^\)]*)\)\s*([;"]?)/ig,function(a,b,c,d,e){
-				var result = b+"var args=[" + d + "];";
+			//2016-07-30 FireEvent在模板运行后在转换就处理不了FireEvent内部有变量转变出来的特殊字符，必须在转换前处理，转换后再处理一次
+			src = src.replace(/([";]?)\s*FireEvent\.(\w+)\(([^\)]*)\)\s*([;"]?)/ig,function(a,b,c,d,e){
+			var param = d.replace(/\$\s*\{[^\}]+\}/ig,function(a){
+				return "@###!"+a+"!###@";
+			});
+				var result = b+"var args=[" + param + "];";
 				result += ("var app = FW.getAPP('" + _$app.id + "');");
 				result += ("app.FireEvent." + c + ".apply(app,args)" + e);
+				return result;
+			});
+			var htmlStr = _useAPI.lang.parserTemplate(src,__data,showAPIObj);
+			//进行事件替换
+			htmlStr = htmlStr.replace(/@###!([\s\S]*?)!###@/ig,function(a,b){
+				//如果为空，返回空字符
+				value = b;
+				if (value == null) {
+					return "";
+				}
+				//直接转义
+				var result = value.replace(/&/g, "&amp;");
+				result = result.replace(/</g, "&lt;");
+				result = result.replace(/>/g, "&gt;");
+				result = result.replace(/"/g, "&quot;");
+				result = result.replace(/'/g, "&#039;");
+				result = result.replace(/\(/g,"&#040");
+				result = result.replace(/\)/g,"&#041");
 				return result;
 			});
 			//2014-08-21 罗光瑜修改，img增加bzImg属性，使得该图片在show的时候，用这个属性替代原来的src属性
@@ -616,17 +658,44 @@ define(function(require, exports, module) {
 		result.mask = _APPAPI.mask || function(__viewId,__data,__width,__height){
 			var src = _$app.view[__viewId];
 			if (src == null){
-				alert("view id " + __viewId + " not found!");
-				return;
-			}				
-			var htmlStr = _useAPI.lang.parserTemplate(src,__data,_useAPI);
-			//进行事件替换
-			htmlStr = htmlStr.replace(/([";]?)\s*FireEvent\.(\w+)\(([^\)]*)\)\s*([;"]?)/ig,function(a,b,c,d,e){
-				var result = b+"var args=[" + d + "];";
+				src = __viewId;
+			}	
+
+
+
+			//2016-07-30 FireEvent在模板运行后在转换就处理不了FireEvent内部有变量转变出来的特殊字符，必须在转换前处理，转换后再处理一次
+			src = src.replace(/([";]?)\s*FireEvent\.(\w+)\(([^\)]*)\)\s*([;"]?)/ig,function(a,b,c,d,e){
+			var param = d.replace(/\$\s*\{[^\}]+\}/ig,function(a){
+				return "@###!"+a+"!###@";
+			});
+				var result = b+"var args=[" + param + "];";
 				result += ("var app = FW.getAPP('" + _$app.id + "');");
 				result += ("app.FireEvent." + c + ".apply(app,args)" + e);
 				return result;
 			});
+			var htmlStr = _useAPI.lang.parserTemplate(src,__data,_useAPI);
+			//进行事件替换
+			htmlStr = htmlStr.replace(/@###!([\s\S]*?)!###@/ig,function(a,b){
+				//如果为空，返回空字符
+				value = b;
+				if (value == null) {
+					return "";
+				}
+				//直接转义
+				var result = value.replace(/&/g, "&amp;");
+				result = result.replace(/</g, "&lt;");
+				result = result.replace(/>/g, "&gt;");
+				result = result.replace(/"/g, "&quot;");
+				result = result.replace(/'/g, "&#039;");
+				result = result.replace(/\(/g,"&#040");
+				result = result.replace(/\)/g,"&#041");
+				return result;
+			});
+			
+			
+			
+			
+			
 			var width = __width;
 			var height = __height;
 			if (width == null){
