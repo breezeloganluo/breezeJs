@@ -13,3 +13,7 @@ Breeze由众联无限技术有限公司提供完整版本，框架是包含了�
 所以，众包都是3到4天的小任务，想做就做，也欢迎大家注册加入
 http://weima.joinlinking.com/page/stylepc/frontcms/index.jsp
 我们的官方qq群是：437239918
+有如果发现问题，请联系我logan@joinlinking.com或在git上提问
+#修订记录
+2016-08-18 v1.49
+修改模板函数${xxx}的一个bug，能在{}中使用有()的表达式了

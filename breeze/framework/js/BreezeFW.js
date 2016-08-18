@@ -59,7 +59,8 @@
 * @version 0.67 2016-04-30罗光瑜修改，修复app在没有视图情况下show函数会出错
 * @version 0.68 2016-04-30罗光瑜修改，在show方法，如果show的节点不在本体中，就会show到外部，而外部必须加app名前缀，对其是个较大限制，现在增加一个不用加前缀的方式
 * @version 0.69 2016-07-23罗光瑜修改，mask的viewid如果不存在，那么src就用户id本身
-* @version 0.70 2016-07-30罗光瑜修改 FireEvent的参数如果是有()之类的特殊字符，就会挂掉，这里show函数直接处理掉
+* @version 0.70 2016-07-30罗光瑜修改 FireEvent的参数如果有${xx}的运算其结果有()之类的特殊字符，就会挂掉，这里show函数直接处理掉
+* @version 0.71 2016-08-17罗光瑜修改 0.70版本修改的如果{中间有()运算}匹配真正的${xxx}是不对的
 */ 
 
 /**
@@ -325,7 +326,7 @@ define(function(require, exports, module) {
 						return a+b.replace(/\$%7B/ig,function(a){return "${"}).replace(/%7D/ig,"}")+c;
 					});
 			//2016-07-30 FireEvent在模板运行后在转换就处理不了FireEvent内部有变量转变出来的特殊字符，必须在转换前处理，转换后再处理一次
-			src = src.replace(/([";]?)\s*FireEvent\.(\w+)\(([^\)]*)\)\s*([;"]?)/ig,function(a,b,c,d,e){
+			src = src.replace(/(["';])\s*FireEvent\.(\w+)\((.*?)\)\s*(['";])/ig,function(a,b,c,d,e){
 			var param = d.replace(/\$\s*\{[^\}]+\}/ig,function(a){
 				return "@###!"+a+"!###@";
 			});
