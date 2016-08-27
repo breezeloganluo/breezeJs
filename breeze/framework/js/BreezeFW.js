@@ -61,6 +61,7 @@
 * @version 0.69 2016-07-23罗光瑜修改，mask的viewid如果不存在，那么src就用户id本身
 * @version 0.70 2016-07-30罗光瑜修改 FireEvent的参数如果有${xx}的运算其结果有()之类的特殊字符，就会挂掉，这里show函数直接处理掉
 * @version 0.71 2016-08-17罗光瑜修改 0.70版本修改的如果{中间有()运算}匹配真正的${xxx}是不对的
+* @version 0.72 2016-08-17罗光瑜修改 调整了blockui的默认样式
 */ 
 
 /**
@@ -710,7 +711,12 @@ define(function(require, exports, module) {
 			var wHeight = window.screen.height;
 			//取较小的那个
 			wHeight = (wHeight > $(window).height())?$(window).height():wHeight;
-			_obj.blockUI (htmlStr,($(window).width() - width) / 2,(wHeight - height) / 2,width,height,'none');
+			mytop = (wHeight - height) / 2;
+			if (__height == null){
+				height = null;
+				mytop = null;
+			}
+			_obj.blockUI (htmlStr,($(window).width() - width) / 2,mytop,width,height,'none');
 		};
 		/**
 		*@function
@@ -1188,14 +1194,20 @@ define(function(require, exports, module) {
 	*@param {String} 边框例如'none'
 	*/
 	_obj.blockUI = function(__src,__left,__top,__width,__height,__border){
+		var myTop = __top && (__top+"px")  || "200px";
+		var myHeight = __height && (__height + "px") || "initial";
 		$.blockUI({
 			message: __src,
 			css: {
 				width: __width+'px',
-				height: __height+'px',
+				height: myHeight,
 				left: __left + 'px',
-				top: __top + 'px',
-				border: __border
+				top: myTop,
+				border: __border,
+				cursor: "auto",
+				border: "#333",
+				padding: "2px",
+				"text-align": "left"
 			}
 		});
 	};
