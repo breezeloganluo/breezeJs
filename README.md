@@ -15,6 +15,10 @@ http://weima.joinlinking.com/page/stylepc/frontcms/index.jsp
 我们的官方qq群是：437239918
 有如果发现问题，请联系我logan@joinlinking.com或在git上提问
 #修订记录
+2016-08-09
+修改了threadSignal的日志模式条件
+2016-09-18
+增加了向后台发送模拟消息的方法，类似可以从客户端提交日志到服务端
 2016-08-27 v1.50
 修改Breeze中的蒙板层实现，使其可以有默认的高度，并且去掉waiting的鼠标指针模式
 2016-08-18 v1.49
