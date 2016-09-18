@@ -15,6 +15,10 @@ http://weima.joinlinking.com/page/stylepc/frontcms/index.jsp
 我们的官方qq群是：437239918
 有如果发现问题，请联系我logan@joinlinking.com或在git上提问
 #修订记录
+2016-09-18
+版本1.56
+修复lang去form表单的功能，可以支持无限极表达。另外show方法支持第四个参数，即jquery的显示特效
+这是一个激动人心的版本，show方法的特效使得页面的显示效果越来越好
 2016-08-09
 修改了threadSignal的日志模式条件
 2016-09-18

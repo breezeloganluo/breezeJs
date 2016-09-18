@@ -65,6 +65,9 @@ define(function(require, exports, module) {
 		var args = [];
 		if (method.arguments && method.arguments.length > 0){
 			for(var i=0;i<method.arguments.length;i++){
+				if(/function/i.test(method.arguments[i])){
+					continue;
+				}
 				args.push(method.arguments[i]);
 			}
 		}

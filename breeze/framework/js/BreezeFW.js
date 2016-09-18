@@ -68,6 +68,9 @@
 * @version 0.76 2016-08-17罗光瑜修改 增加录制servicegadget的日志类函数
 * @version 0.77 2016-09-07罗光瑜修改 doServer发起请求后，支持mokeSignal参数进行模拟桩数据获取
 * @version 0.78 2016-09-07罗光瑜修改 doServer发起请求带日志，结果本地变量名写错
+* @version 0.79 2016-09-13罗光瑜修改 this.API.show 方法要做些改动，要支持aftershow的插入点，即所有show方法后，要做的一些事情，可以定义
+* @version 0.80 2016-09-13罗光瑜修改 gadget增加版本，便于缓存控制
+* @version 0.81 2016-09-16罗光瑜修改 show方法支持特效显示
 */ 
 
 /**
@@ -307,8 +310,8 @@ define(function(require, exports, module) {
 		*支持外显示，即显示到__target_appid对应的外部标签中
 		*@example 
 		*this.API.show("view1",data);
-		*/		
-		result.show = _APPAPI.show || function(__viewId,__data,__target){
+		*/
+		var realShow = function(__viewId,__data,__target,method){
 			//2016-04-30罗光瑜修改
 			var tmpDom = null;
 			if (_$app.dom != null && /string/i.test(typeof(_$app.dom))){
@@ -387,11 +390,23 @@ define(function(require, exports, module) {
 			});
 			//2014-08-07 罗光瑜修改，show方法如果是target是_那么不会被输出
 			if (__target != "_"){
-				target.html(htmlStr);
-				target.show();	
+				if (!method){
+					target.html(htmlStr);
+				    target.show();
+				}else{
+					target.hide();
+					target.html(htmlStr);
+				    target[method]();
+				}
+					
 			}
 			//2014-08-07 罗光瑜修改，show方法一定有输出
 			return htmlStr;
+		}
+		result.show = _APPAPI.show || function(__viewId,__data,__target,method){
+			var result = realShow(__viewId,__data,__target,method);
+			_APPAPI.afterShow && _APPAPI.afterShow(__viewId,__data,__target);
+			return result;
 		};
 		
 		/**
@@ -981,7 +996,7 @@ define(function(require, exports, module) {
 	*	}
 	*)
 	*/
-	_obj.register =  function(__c,module){
+	_obj.register =  function(__c,module,version){
 		if (!__c || !__c.name){
 			return;
 		}
@@ -989,7 +1004,11 @@ define(function(require, exports, module) {
 		//2015-10-19罗光瑜修改，增加参数module，使得gadget中可以获取自己所在路径
 		if (module){
 			_gadget[__c.name]._uri = module.uri;	
-		}		
+		}
+		//2016-09-13罗光瑜修改，增加版本控制
+		if (version){
+			_gadget[__c.name].version = version;
+		}
 	};
 	
 	/**
@@ -1038,6 +1057,33 @@ define(function(require, exports, module) {
 	*		});
 	*/	
 	_obj.go = function(__url,pageGadget,$callBack){
+		//2016-09-13罗光瑜修判断是否有内容，有的话就将gadget全部记录到本地中。
+		var myurl = window.location.toString();
+		var threadSignal = null;
+		var execResult = (new RegExp("threadSignal=([\\w%\\.]+)")).exec(myurl);
+		if (execResult){
+			threadSignal = execResult[1];
+		}
+		if (threadSignal == null){
+			threadSignal = _obj.use().load("_threadSignal",true);
+		}
+		if (threadSignal){
+			var appLogObj = _obj.use().load("_allGadgetVersion",true);
+			myurl = myurl.replace(/^http[s]?:\/\/.+?\//i,"");
+			myurl = myurl.replace(/[\?#].*$/i,""); 
+			myurl = myurl.replace(/[\\\/]+/g,"/");
+			if (appLogObj == null){
+				appLogObj = {};
+			}
+			if (!appLogObj[myurl]){
+				appLogObj[myurl] = {};
+			}
+			for (var n in _gadget){
+				appLogObj[myurl][n] = _gadget[n].version || "无";
+			}
+			_obj.use().save("_allGadgetVersion",appLogObj,true);
+		}
+		
 		//2015-01-05 罗光瑜 进行是否go初始化校验
 		if (_obj.hasGo){
 			//如果已经初始化过，则进行告警,为做一定的兼容性处理，这里不强制退出
@@ -1441,6 +1487,19 @@ define(function(require, exports, module) {
 			threadSignal = _obj.use().load("_threadSignal",true);
 		}
 		if (!threadSignal){
+			return;
+		}
+		//如果第一个参数是字符串，就直接记录本地日志
+		if (/string/i.test(typeof(app))){
+			var oldLog = _obj.use().load("_pgLog",true);
+			if (oldLog == null){
+				oldLog = [];
+			}
+			oldLog.push({
+				log:app,
+				time:(new Date()).toString()
+			});
+			_obj.use().save("_pgLog",oldLog,true);
 			return;
 		}
 		//整理参数
