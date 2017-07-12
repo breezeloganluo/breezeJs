@@ -8,22 +8,42 @@ define(function(require, exports, module) {
      *主要是在主测试页面中，增加对应的测试HTML对象
      */
     JSTest.init = function () {
-        //在body上创建两个控件
+        //判断，如果控件已经创建过，就不要再创建了
+		var ctrDiv = document.getElementById(JSTest.name_testContent_div);
+		if (ctrDiv!=null){
+			var tableObj = document.getElementById(JSTest.name_resultContent_table);
+			var trObj = document.createElement('tr');
 
+			var tdObj_name = document.createElement('td');
+			tdObj_name.innerHTML = "-----";
+
+			var tdObj_result = document.createElement('td');
+			//如果成功，结果处变成绿色
+			result = '<font color="#0000ff">next</font>';
+			tdObj_result.innerHTML = result;
+			tableObj.appendChild(trObj);
+			trObj.appendChild(tdObj_name);
+			trObj.appendChild(tdObj_result);
+			return;
+		}
+		else{
         //首先是div控件，用于容纳测试的专用控件
-        var divObj = document.createElement('div');
-        divObj.setAttribute('id', JSTest.name_testContent_div); //类型
-        document.body.appendChild(divObj);
+			var divObj = document.createElement('div');
+			divObj.setAttribute('id', JSTest.name_testContent_div); //类型
+			document.body.appendChild(divObj);
 
-        //创建table
-        var tableObj = document.createElement('table');
-        tableObj.setAttribute('border', '1');
-        document.body.appendChild(tableObj);
+			//创建table
+			var tableObj = document.createElement('table');
+			tableObj.setAttribute('border', '1');
+			document.body.appendChild(tableObj);
 
-        //IE独有的，必须有tbody才能显示
-        var tabodyObj = document.createElement('tbody');
-        tabodyObj.setAttribute('id', JSTest.name_resultContent_table); //类型
-        tableObj.appendChild(tabodyObj);
+			//IE独有的，必须有tbody才能显示
+			var tabodyObj = document.createElement('tbody');
+			tabodyObj.setAttribute('id', JSTest.name_resultContent_table); //类型
+			tableObj.appendChild(tabodyObj);
+		}
+		
+		
 
     }
     /**
@@ -49,7 +69,8 @@ define(function(require, exports, module) {
         tableObj.appendChild(trObj);
         trObj.appendChild(tdObj_name);
         trObj.appendChild(tdObj_result);
-
+		
+	    parent && parent.appendResult && parent.appendResult(name, result, isSucc);
     }
     //记录当时正在测试的测试对象信息
     JSTest.currentTest = null;

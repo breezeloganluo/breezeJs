@@ -29,8 +29,16 @@ define(function(require, exports, module) {
 		return eval("(" + strJson + ")");
 	}
 
-
-
+    
+    var isDupObj = function(obj,objArray){
+		for (var i=0;i<objArray.length;i++){
+			if (obj === objArray[i]){
+				return true;
+			}
+		}
+		objArray.push(obj);
+		return false;
+	}
 /**
 * 将javascript数据类型转换为json字符串的方法。
 *
@@ -39,30 +47,69 @@ define(function(require, exports, module) {
 * @return 返回json字符串
 **/
 
-	_api.toJSONString = function(object) {
+	_api.toJSONString = function(object,objectArr) {
+		//这个参数是防止递归调用的
+		if (objectArr == null){
+			objectArr = [0];
+		}
+		else{
+			objectArr[0]++;
+			if (objectArr[0] >=30){
+				//如果这个中断被触发，说明被解析的json还是被递归了objectArr[0]的值代表被递归的深度
+				debugger;
+			}
+		}
+		
 		if (object == null){
-			return;
+			objectArr[0]--;
+			return null;
 		}
 		var type = typeof object;
 		if ('object' == type) {
-			if (Array == object.constructor) type = 'array';
-			else if (RegExp == object.constructor) type = 'regexp';
-			else type = 'object';
+			if (Array == object.constructor) {
+				type = 'array';
+			}
+			else if (RegExp == object.constructor) {
+				type = 'regexp';
+			}
+			else if (object instanceof HTMLElement){
+				type = 'html';
+			}
+			else if (!/^undefine/.test(typeof(jQuery)) && object instanceof jQuery){
+				type = "jQuery";
+			}
+			else {
+				type = 'object';
+			}
 		}
 		switch (type) {
 			case 'undefined':
 			case 'unknown':
-				return;
+				objectArr[0]--;
+			    return null;
 				break;
 			case 'function':
-			case 'boolean':
+				objectArr[0]--;
+			    return '"JS_FUNCTION"';
+			case 'html':
+				objectArr[0]--;
+			    return '"HTMLElement"';
+			case 'jQuery':
+				objectArr[0]--;
+			    return '"jQuery"';
 			case 'regexp':
+				objectArr[0]--;
+			    return '"JS_REGEXP"';
+			case 'boolean':
+				objectArr[0]--;
 				return object.toString();
 				break;
 			case 'number':
+				objectArr[0]--;
 				return isFinite(object) ? object.toString() : 'null';
 				break;
 			case 'string':
+				objectArr[0]--;
 				return '"' + object.replace(/(\\|\")/g, "\\$1").replace(/\n|\r|\t/g, function() {
 				var a = arguments[0];
 				return (a == '\n') ? '\\n': (a == '\r') ? '\\r': (a == '\t') ? '\\t': ""
@@ -70,19 +117,32 @@ define(function(require, exports, module) {
 				break;
 			case 'object':
 				if (object === null) return 'null';
+				//判断是否递归调用
+				if (isDupObj(object,objectArr)){
+					objectArr[0]--;
+					return "\"对象递归\"";
+				}
+				
 				var results = [];
 				for (var property in object) {
-				var value = _api.toJSONString(object[property]);
-				if (value !== undefined) results.push(_api.toJSONString(property) + ':' + value);
+				var value = _api.toJSONString(object[property],objectArr);
+				if (value != null) results.push(_api.toJSONString(property,objectArr) + ':' + value);
 				}
+				objectArr[0]--;
 				return '{' + results.join(',') + '}';
 				break;
 			case 'array':
+			    //判断是否递归调用
+				if (isDupObj(object,objectArr)){
+					objectArr[0]--;
+					return "\"数组递归\"";
+				}
 				var results = [];
 				for (var i = 0; i < object.length; i++) {
-				var value = _api.toJSONString(object[i]);
-				if (value !== undefined) results.push(value);
+				var value = _api.toJSONString(object[i],objectArr);
+				if (value != null) results.push(value);
 				}
+				objectArr[0]--;
 				return '[' + results.join(',') + ']';
 				break;
 			}

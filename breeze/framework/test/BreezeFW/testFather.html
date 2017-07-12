@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+</head>
+<body style="height:100%;margin:0; padding:0;widht:100%">
+	<script src="../../../../breeze/lib/js/jquery.js"></script>
+	<script src="../../../../breeze/lib/js/sea.js"></script>	
+	<!--page specific plugin scripts-->
+	<script>
+	seajs.config({base:"../../../../"});
+	seajs.use( ['./father/testFather'],function(a) {
+				a.runTest();
+			});
+	</script>
+</body>
+</html>

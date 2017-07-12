@@ -15,6 +15,8 @@ http://weima.joinlinking.com/page/stylepc/frontcms/index.jsp
 我们的官方qq群是：437239918
 有如果发现问题，请联系我logan@joinlinking.com或在git上提问
 #修订记录
+2016-10-17
+gadget公有方法增加了代理机制，可以外部不变功能情况下，抓取出所有公有方法的输入参数，输出参数，而且还可以通过模拟跳过所有公有函数
 2016-09-18
 版本1.56
 修复lang去form表单的功能，可以支持无限极表达。另外show方法支持第四个参数，即jquery的显示特效

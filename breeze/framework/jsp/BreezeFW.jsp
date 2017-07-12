@@ -3,6 +3,7 @@
 <%@ page import="com.breeze.framwork.databus.*"%>
 <%@ page import="com.breeze.framwork.netserver.tool.ContextMgr"%>
 <%
+request.setCharacterEncoding("utf-8");
 String baseDir = "../../../manager_auxiliary/server/";
 String bDir = request.getParameter("bDir");
 String sFile = request.getParameter("sFile");
@@ -64,7 +65,7 @@ for (int i=0;i<paramContext.getArraySize();i++){
 	}catch(Exception e){
 		e.printStackTrace();
 		%>
-		{code:9999,data:"Exception!"}
+		{"code":9999,"data":"Exception!"}
 		<%
 	}
 }

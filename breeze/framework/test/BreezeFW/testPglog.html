@@ -1,0 +1,16 @@
+<html>
+<head>
+
+</head>
+<body>
+	<script src="../../../../breeze/lib/js/jquery.js"></script>
+	<script src="../../../../breeze/lib/js/sea.js"></script>	
+	<!--page specific plugin scripts-->
+	<script>
+	seajs.config({base:"../../../../"});
+	seajs.use( ['./pglog/testPglog'],function(a) {
+				a.runTest();
+			});
+	</script>
+</body>
+</html>

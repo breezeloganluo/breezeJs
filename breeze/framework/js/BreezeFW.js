@@ -71,6 +71,14 @@
 * @version 0.79 2016-09-13罗光瑜修改 this.API.show 方法要做些改动，要支持aftershow的插入点，即所有show方法后，要做的一些事情，可以定义
 * @version 0.80 2016-09-13罗光瑜修改 gadget增加版本，便于缓存控制
 * @version 0.81 2016-09-16罗光瑜修改 show方法支持特效显示
+* @version 0.82 2016-09-26罗光瑜修改 threadSignal本地标识要加时间约束
+* @version 0.83 2016-09-27罗光瑜修改 这个是一个重大修改，打算在所有的公有方法中包装一个方法，这样所有公有方法都有一个代理实现机制
+* @version 0.84 2016-09-28罗光瑜修改 配合这个大修改pglog不用在用特定的外部调用去上报了，内部去调用，而且外部直接字符串上报
+* @version 0.85 2016-09-28罗光瑜修改 关于日志，需要客户端日志的，仅仅是手机设备，要手机自己去打开日志不现实。提供这样的机制，就是长记日志，条件发送
+* @version 0.86 2016-10-06罗光瑜修改 关于father函数因为增加了proxy调用，所以通过caller去寻找调用者失效，导致father在某些情况下失效
+* @version 0.86 2016-10-08罗光瑜修改 那天加的回调函数索引应该是从真正回调的函数开始的，而这里的回调函数是从函数第n个参数开始
+* @version 0.87 2016-10-11罗光瑜修改 如果模拟的回调函数输入是null，那么要填入$null而不是空
+* @version 0.88 2016-10-17罗光瑜修改 如果是匿名函数调用father，那么找不到被调函数，这个时候要手动指定调用函数
 */ 
 
 /**
@@ -161,14 +169,7 @@ define(function(require, exports, module) {
 	//2015-01-28罗光瑜函数后面增加;
 	_obj.log = function(str){
 		//015-06-22 解决ie下报错的问题
-		try{
-			if (console){
-				console.log(str);
-			}
-		}catch(e){
-			
-		}
-		
+		_obj.pgLog(str);
 	};
 	
 	//加载jquery.blockUI 源码并执行
@@ -208,7 +209,10 @@ define(function(require, exports, module) {
 					threadSignal = execResult[1];
 				}
 				if (threadSignal == null){
-					threadSignal = _obj.use().load("_threadSignal",true);
+					var data = _obj.use().load("_threadSignal",true);
+					if (data && data.time + 5*60*1000 >= (new Date()).getTime()){
+						threadSignal = data.threadSignal;
+					}
 				}
 				
 				
@@ -805,11 +809,21 @@ define(function(require, exports, module) {
 		*那么，在gadget中，父类的hello将被触发：
 		*因为是多继承，所以当当父类有多个hello的时候，可以用this.API.father('gadgetA.hello', 1,2,3);
 		*的方式进行调用，如果没有前缀，而有多个继承，那么使用第一个定义的gadget结果
+		*因为在匿名函数调用时，可能还是获取不到被调函数，所以支持一个指定匿名函数的反向调用方法
 		*/
 		result.father = _APPAPI.father || function(fatherAPI){
-			var callerFun = _obj.getCaller();
+			var callerFun = _obj.getCaller("funowner");
 			var args = [];
+			args.push(fatherAPI);
+			args.push(callerFun);
 			for (var i=1;i<arguments.length;i++){
+				args.push(arguments[i]);
+			}
+			return result.fatherCF.apply(this,args);
+		}
+		result.fatherCF = _APPAPI.father || function(fatherAPI,callerFun){
+			var args = [];
+			for (var i=2;i<arguments.length;i++){
 				args.push(arguments[i]);
 			}
 			//2015-02-29 罗光瑜改写，原来通过this指针递进寻找father是有问题的，因为在father层再调用普通函数，这个时候普通函数层级也被带入到father级别中
@@ -819,28 +833,44 @@ define(function(require, exports, module) {
 			//下面寻找father
 			var funOwner = callerFun.funowner;
 			
-			//说明是空的，就是本身自己，father找原先app的father就可以
+			//初始化一个值，如果funOwner说明是空的，就是本身自己，father找原先app的father就可以
 			app._father = _$app._father;
 			
-			//funOwner是按照一个一个继承关系的反向数组，一定是单列的，而且如果是最终节点则为空
-			//这个链条参见_getAfterExtendGadget函数实现
-			//这里要考虑从集成关系的非底层调用开始的情况，这个时候，寻找father.father会为空
-			if (funOwner != null){				
-				for(var i=funOwner.length-1;i>=0;i--){
-					//如果调用者不是从father链条的顶部往下走，那么就是从中间往下走，注意顺序一定是对的，这个时候只要跳过开始部分就可以
-					if (!app._father._father || !app._father._father[funOwner[i]]){
-						continue;
+			//这里要解决一个问题，就是当前a继承了父类的b函数，而父类的b函数调用father来调用父类的父类函数
+			//这样，这个b函数因为继承会复制一份到a中，而直接调用，其实要找到b函数真正的father，思路：
+			//funowner就是函数的实际gagdet名，和当前名字比较，如果不是，说明这个函数不是当前的，找father
+			//暂时有一个限制，这种情况，下暂时只能调用公有方法
+			if (funOwner != _$app.gadgetName){
+				var findFather = function(oo){
+					if (oo == null || oo._father == null){
+						return null;
 					}
-					app._father = app._father._father[funOwner[i]];
+					//如果找到就直接返回
+					if (oo._father[funOwner]){
+						return oo._father[funOwner];
+					}
+					//否则就递归了
+					for (n in oo._father){
+						result = findFather(oo._father[n]);
+						if (result != null){
+							return result;
+						}
+					}
+					//递归完都没有，那就真没有了
+					return null;
 				}
+				app._father = findFather(app._father);
 			}
+			
 			
 			//下面调用父类的方法论
 			var fatherObj = app._father;
 			var invokArr = fatherAPI.split(".");
 			var invoteFun = null;
 			var gadgetName = null;
-			
+			if (fatherObj == null){
+				console.log("fatherObj not found API.father fail!try fatherCF and specify second param as callerfuntion");
+			}
 			if (invokArr.length == 1){
 				invoteFun = fatherObj["public."+invokArr[0]];
 				if (!invoteFun){
@@ -910,11 +940,252 @@ define(function(require, exports, module) {
 		return result;		
 	}
 	
+	
+	/**
+	 * @description version 0.83 
+	 *  这个方法是给嵌入的函数代理进行模拟数据插入使用的，后台的模拟数据格式为：
+	 *  {
+	 *	    [mokeid]:{
+	 *	        gadgetName:{---》从这里开始
+	 *	            function:{
+	 *                  isMoke:[true/false],这是一个开关，说明这个方法是否要进行模拟
+	 *                  input:[],各个参数
+     *                  return:{}返回对象
+     *                  callback:{
+	 *                       c0:[],第一个回调，里面第一个回调的第n次调用
+	 *                       c1:[]第二个回调，里面第一个回调的第n次调用
+	 *                  }
+	 *              }
+	 *          }
+	 *      }
+	 *  }
+     *  这个函数输入项目是
+	 *  @param gadget gadget名,
+	 *  @param method 当前调用的方法
+	 *  @param callbackArr 回调函数数组
+	 *  该函数返回结果为:
+	 *  {
+	 *	    isMoke:true/false  true的时候，则要模拟，否则不模拟
+	 *      return: 返回的结果值
+	 *  }
+	 *  本函数先根据url中是否存在moke参数，如果不存在，就直接返回不模拟的结果
+	 *  如果存在，则检查数据是否存在缓存中，如果没有就加载
+	 *  如果加载还没有，就返回不模拟，但想服务器发送一条本函数调用的信息，方便服务器手工编写模拟信息
+	 *  模拟数据存在，但本函数的isMoke为false，则本函数也不模拟
+	 *  最后，如果决定模拟，还要先看看有没有回调函数，有回调函数则优先调用回调函数
+	 *  最后返回结果
+	 */
+	_obj.pgMoke = function(gadget,method,callbackArr,input,gadgetUrl){
+		//先判断标识
+		var mokeSig = _obj.use().getParameter("mokeSignal");
+		if (mokeSig == null){
+			return null;
+		}
+		
+		myMoke = null;
+		//获取url文件
+		var myurl = window.location.toString();
+		var url = myurl.replace(/^http[s]?:\/\/[^\/]+/i, "");
+		//去掉尾部?部分
+		url = url.replace(/[#\?][\s\S]*$/i, "");
+		//去掉应用名部分
+		if (/undefined/.test(typeof(Cfg))){
+			console.log("Cfg.baseUrl必须被定义，在/config/config.jsp中定义按照js方式加载");
+			return;
+		}
+		if (!/undefined/.test(typeof(Cfg)) && url.indexOf(Cfg.baseUrl) == 0) {
+			url = url.substr(Cfg.baseUrl.length);
+		}else{
+			url = url.replace(/^.*(\/page\/)/i,function(a,b,c,d,e){
+				return b;
+			})
+		}
+		
+
+		//获取尾部?部分
+		var execResult = /[#\?]([\s\S]*$)/i.exec(url);
+		var qstr = "";
+		if (execResult!=null){
+			qstr = execResult[1];
+		}
+		
+		
+		//变成可用符号
+		url=("/"+url).replace(/[\\\/]+/ig,"_");
+		
+		var result = FW.doServer("reqMokeData","moke",{
+			url:url,
+			qstr:qstr,
+			gadgetName:gadget,
+			gadgeturl:gadgetUrl,
+			funName:method,
+			input:input || []
+		},null,null,Cfg.baseUrl+"/breeze/framework/jsp/BreezeFW.jsp");
+		if (result && result.code==0){
+			myMoke = result.data;
+		}
+			
+
+		//如果还是没有，就返回，空数据在上次请求中已经带入服务器端
+		if (myMoke == null){
+			return null;
+		}
+		
+		var gadgetObj = myMoke[gadget];
+		if (gadgetObj == null){
+			return null;
+		}
+		
+		var methodObj = gadgetObj[method];
+		if (methodObj == null){
+			return null;
+		}
+		
+		if (!methodObj.isMoke || methodObj.isMoke == "false"){
+			return null;
+		}
+		
+		//处理回调函数
+		for (var i=0;callbackArr && i<callbackArr.length;i++){
+			var callBackParamArr = methodObj.callback && methodObj.callback["c"+i] || [];
+			for (var j=0;j<callBackParamArr.length;j++){
+				var callbackParam = [];
+				for (var k=0; callBackParamArr[j]!=null && k<callBackParamArr[j].length;k++ ){
+					var one = callBackParamArr[j][k];
+					if (one == "$null"){
+						one = null;
+					}
+					callbackParam.push(one);
+				}
+				callbackArr[i].apply(this,callbackParam);
+			}
+		}
+		
+		//处理返回
+		var result = methodObj["return"];
+		return {
+			"isMoke":true,
+			"return":result
+		}
+	}
+	
+	/**
+	 * @description version 0.83 的修改在本部方法中增加公有方法代理
+	 *  该方法输入的是原来的公有方法，这个方法负责在外面包一层方法，然后将方法返回
+	 *  该方法支持真实数据的正向输出，以及模拟数据数据的反向注入。
+	 *  模拟数据的正向输出，我们希望的输出的格式为：
+	 *  {
+	 *	    threadSignal:{
+	 *	        gadgetName:{
+	 *	            function:{
+	 *                  input:[],各个参数
+     *                  return:{}返回对象
+     *                  callback:{
+	 *                       c0:[],第一个回调，里面第一个回调的第n次调用
+	 *                       c1:[]第二个回调，里面第一个回调的第n次调用
+	 *                  }
+	 *              }
+	 *          }
+	 *      }
+	 *  }
+	 *  日志的上报功能，不能嵌入到这个函数本身去做，应该有另外一个对外公有函数做，
+	 *  重用原先的pgLog函数，只不过要改改参数了，改成
+	 *  pgLog(uri,gadgetName,functionName,logObj)
+	 *  logObj:{
+	 *	    name:input/return/callback,
+     *      session:回话id
+     *      logObj:真正的对象
+	 *  }
+	 *  如果是callback
+	 *  {
+	 *      name:c[n],
+	 *      param:[]
+	 *  }
+	 */
+	_obj.getMathodProxy = function(pf,gadgetObj,mName){
+		//获取gadget的基本信息
+		var gadgetInfo ={
+			method:mName,
+			gadget:gadgetObj.name,
+			uri:gadgetObj._uri || ""
+		}
+
+		var result = function(){
+			//获取一段随机数作为回话本身
+			var session = Math.round(Math.random() * 1000000);
+			//真实调用的参数解构
+			var param = [];
+			//上报日志的log参数，需要将回调函数区分开来
+			var logParam = [];
+			var callBackArr = [];
+			var funIdx = 0;
+			for(var i=0;i<arguments.length;i++){
+				if (/function/i.test(typeof(arguments[i]))){
+					//如果是回调函数，那么回调函数也是需要包装的proxy的
+					//这里代码可能有些人看不懂，其实是加了一层闭包，因为有可能有多个回调函数
+					//这里i要保留到执行时刻，这样唯一的办法就是外层加一个闭包的匿名函数去返回实际的函数，目的就是把i保存下来
+					//这里实际要记录的是callback的输入
+					var newCallBack = (function(idx,callback){
+						var callbackFun = function(){
+							var callParam = [];
+							var logParam =[];
+							for(var j=0;j<arguments.length;j++){
+								callParam.push(arguments[j]);
+								if (!/function/i.test(typeof(arguments[j]))){
+									if (arguments[j] == null){
+										logParam.push("$null");
+										continue;
+									}
+									logParam.push(arguments[j]);
+								}
+							}
+							//调用前产生日志
+							_obj.pgLog(gadgetInfo.uri,gadgetInfo.gadget,gadgetInfo.method,
+							{name:"callback","session":session,logObj:{name:"c"+idx,param:logParam}});
+							callback.apply(this,callParam);
+						};
+						return callbackFun;
+					})(funIdx++,arguments[i]);
+					param.push(newCallBack);
+					callBackArr.push(arguments[i]);
+				}else{
+					logParam.push(arguments[i]);
+					param.push(arguments[i]); 
+				}
+			}
+			
+			//运行阶段,判断是否有模拟数据切入
+			var isMoke = false;
+			var result = null;
+			if (_obj.pgMoke){
+				var mokeResult = _obj.pgMoke(gadgetInfo.gadget,gadgetInfo.method,callBackArr,logParam,gadgetInfo.uri);
+				if (mokeResult == null || !mokeResult.isMoke){
+					isMoke = false;
+				}
+				else{
+					isMoke = true;
+				}
+			}
+			if (isMoke){
+				result = mokeResult["return"];
+			}else{
+				//发送日志，考虑到实际的日志定位中，可能函数体会出现异常会导致终端运行，所以请求部分和return部分分开调用
+			    _obj.pgLog(gadgetInfo.uri,gadgetInfo.gadget,gadgetInfo.method,{name:"input","session":session,logObj:logParam});
+				result = pf.apply(this,param);
+				//记录返回结果日志
+			    _obj.pgLog(gadgetInfo.uri,gadgetInfo.gadget,gadgetInfo.method,{name:"return","session":session,logObj:result});
+			}
+			
+			return result;
+		}
+		return result;
+	}
+	
+	
 	//继承类的缓存，如果每次都获取，效率太低
 	var _afterExtendGadget = {};
+	
 	/**
-	 * @name extends 
-	 * @memberOf APP
 	 * @description APP的继承信息，在编写gadget的时候重写。
 	 *  继承的规则是，被继承的当前gadget会复盖父类相同的同名方法，以及同名参数。而没有复盖的部分
 	 *  将使用父类的方法。
@@ -928,6 +1199,32 @@ define(function(require, exports, module) {
 			//如果缓存存在，那么直接返回了
 			return _afterExtendGadget[result.name];
 		}
+		//@version 0.83 的修改在本部方法中增加公有方法代理
+		if (result["public"] && _obj.getMathodProxy){
+			for (var n in result["public"]){
+				result["public"][n] = _obj.getMathodProxy(result["public"][n],result,n);
+			}
+		}
+		
+		//2016-10-06重新处理子函数继承了父函数，没有重载，这个时候，要标识出
+		//这个函数是父函数的，以便这个父函数中调用的this.API.father能正确的找到father
+		//思路是每个函数都写一个funowner属性，和以前不同，这次只写一个，由上至下的继承
+		//也写入自己的,就是最开始的那个函数所属类，而且每个函数都写
+		var funowner = result.name;
+		var writeFunOwnerName = function(obj){
+			for (var n in obj){
+				var one = obj[n];
+				if (/object/i.test(typeof(one))){
+					writeFunOwnerName(one);
+					continue;
+				}
+				if (/function/i.test(typeof(one))){
+					one.funowner = funowner;
+					continue;
+				}
+			}			
+		}
+		writeFunOwnerName(result);
 
 		//2013-12-18日罗光瑜修改 对象.extends在ie下是关键字，直接编译不过，改成['extends']
 		//2014-08-31 支持super 每个类的father的结构是_father["private.<fun>"]["<gadgetName>"] = function(){xxxx}
@@ -948,12 +1245,6 @@ define(function(require, exports, module) {
 							result._father[path] = {};
 						}
 						result._father[path][oneClassName] = srcObj[name];
-						//2015-02-26罗光瑜修改，要将函数的集成路径记录到函数里面，后续要用这个去判断father情况。
-						//这个东西是写入到src的那个fun里面的，换句话说，如果被子类重写，那么这个数组就断掉了。
-						if (srcObj[name].funowner == null){
-							srcObj[name].funowner = [];
-						}
-						srcObj[name].funowner.push(oneClassName);
 						
 					}
 					return true;
@@ -1065,7 +1356,10 @@ define(function(require, exports, module) {
 			threadSignal = execResult[1];
 		}
 		if (threadSignal == null){
-			threadSignal = _obj.use().load("_threadSignal",true);
+			var data = _obj.use().load("_threadSignal",true);
+			if (data && data.time + 5*60*1000 >= (new Date()).getTime()){
+				threadSignal = data.threadSignal;
+			}
 		}
 		if (threadSignal){
 			var appLogObj = _obj.use().load("_allGadgetVersion",true);
@@ -1224,7 +1518,10 @@ define(function(require, exports, module) {
 				threadSignal = execResult[1];
 			}
 			if (threadSignal == null){
-				threadSignal = _obj.use().load("_threadSignal",true);
+				var data = _obj.use().load("_threadSignal",true);
+				if (data && data.time + 5*60*1000 >= (new Date()).getTime()){
+					threadSignal = data.threadSignal;
+				}
 			}
 			
 			var mokeSignal = null;
@@ -1472,49 +1769,71 @@ define(function(require, exports, module) {
 	/**
 	*2016-09-03 罗光瑜 提供log方法方法
 	*@function
-	*@name createApp
+	*@name pgLog
 	*@param {String} app 提示字符串
 	*@param {String} method 对应的回调函数
 	*@param {String} postData 这个调用的输入对象
 	*@param {String} returnData 返回的参数
 	*@memberOf FW
 	*@description 当设置了日志标识后，会进行参数提交录制对应操作的日志信息提交到后台，达到录制条件的日志标识，可以从url中获取，也可以从localtion中获取
+	*             这次配合版本version 0.84的改动
 	*/
-	_obj.pgLog = function(app,method,postData,returnData){
-		//判断是否有有标识
-		var threadSignal = _obj.use().getParameter("threadSignal");
-		if (!threadSignal){
-			threadSignal = _obj.use().load("_threadSignal",true);
-		}
-		if (!threadSignal){
+	_obj.pgLog = function(gadgeturl,gadget,method,logObj){
+		//判断第一个参数是否是对象，是对象是老的调用，为兼容，直接跳过忽略
+		if (/Object/i.test(typeof(gadgeturl))){
 			return;
 		}
-		//如果第一个参数是字符串，就直接记录本地日志
-		if (/string/i.test(typeof(app))){
-			var oldLog = _obj.use().load("_pgLog",true);
+		
+		//如果后面参数为空，则直接写日志
+		if (gadget==null || method == null || logObj == null){
+			var oldLog = _obj.use().load("_pgLog");
 			if (oldLog == null){
 				oldLog = [];
 			}
 			oldLog.push({
-				log:app,
+				log:gadgeturl,
 				time:(new Date()).toString()
 			});
-			_obj.use().save("_pgLog",oldLog,true);
+			_obj.use().save("_pgLog",oldLog);
 			return;
 		}
+		
+		//判断是否有有标识
+		var threadSignal = _obj.use().getParameter("threadSignal");
+		if (!threadSignal){
+			var data = _obj.use().load("_threadSignal",true);
+			if (data && data.time + 5*60*1000 >= (new Date()).getTime()){
+				threadSignal = data.threadSignal;
+			}
+		}
+		if (!threadSignal){
+			return;
+		}
+		
+		//否则就向后台发送模拟的日志信息
 		//整理参数
 		//获取url文件
 		var myurl = window.location.toString();
 		var url = myurl.replace(/^http[s]?:\/\/[^\/]+/i, "");
-		//去掉尾部?部分
+		//处理qstr部分
+		var execResult = /[#\?]([\s\S]*$)/i.exec(url);
+		var qstr = "";
+		if (execResult!=null){
+			qstr = execResult[1];
+			qstr = qstr.replace(/threadSignal=[^&]+&?/ig,"");
+		}
 		url = url.replace(/[#\?][\s\S]*$/i, "");
 		//去掉应用名部分
 		if (/undefined/.test(typeof(Cfg))){
-			alert("Cfg.baseUrl必须被定义，在/config/config.jsp中定义按照js方式加载");
+			console.log("Cfg.baseUrl必须被定义，在/config/config.jsp中定义按照js方式加载");
 			return;
 		}
 		if (!/undefined/.test(typeof(Cfg)) && url.indexOf(Cfg.baseUrl) == 0) {
-			url = url.substr(Cfg.baseUrl.length);
+			var tmp  = ("/"+Cfg.baseUrl.replace(/[\\\/]$/i,"")).replace(/[\\\/]+/ig,"/");
+			url = url.substr(tmp.length);
+			gadgeturl = gadgeturl.replace(/^http[s]?:\/\/[^\/]+/i, "");
+			gadgeturl = gadgeturl.replace(/[\\\/]+/ig,"/");
+			gadgeturl = gadgeturl.substr(tmp.length);
 		}else{
 			url = url.replace(/^.*(\/page\/)/i,function(a,b,c,d,e){
 				return b;
@@ -1522,17 +1841,38 @@ define(function(require, exports, module) {
 		}
 		//变成可用符号
 		url=("/"+url).replace(/[\\\/]+/ig,"_");
-		//获取名字
-		var name = app.gadgetName;
-		
 		//发送请求
 		FW.doServer("logMokeData","moke",{
 			url:url,
-			gadgetName:name,
+			qstr:qstr,
+			gadgeturl:gadgeturl,
+			gadgetName:gadget,
 			funName:method,
-			input:postData,
-			output:returnData
-		},function(){},app,Cfg.baseUrl+"/breeze/framework/jsp/BreezeFW.jsp");
+			logObj:logObj
+		},function(){},this,Cfg.baseUrl+"/breeze/framework/jsp/BreezeFW.jsp");
+	}
+	
+	/**
+	*2016-09-03 罗光瑜 提供log方法方法
+	*@function
+	*@name comfirmLog
+	*@memberOf FW
+	*@description 和pgLog配套使用，当达到日志符合触发条件调用该函数，将local中的信息上报至服务端，同时清空日志内容
+	*             这次配合版本version 0.84的改动
+	*/
+	_obj.confirmLog = function(){
+		//去掉应用名部分
+		if (/undefined/.test(typeof(Cfg))){
+			console.log("Cfg.baseUrl必须被定义，在/config/config.jsp中定义按照js方式加载");
+			return;
+		}
+		var log = _obj.use().load("_pgLog");
+		if (log == null){
+			return;
+		}
+		_obj.use().save("_pgLog",null);
+		//发送请求
+		FW.doServer("log","debug",{log:log,oper:"log"},function(){},{},Cfg.baseUrl+"/breeze/framework/jsp/BreezeFW.jsp");
 	}
 	
 	/**
@@ -1540,14 +1880,23 @@ define(function(require, exports, module) {
 	*@function
 	*@name createApp
 	*@param {int} level 堆栈层数，0表示自己，1表示调用者，如此类推，默认是1
+	*                    2016-10-06罗光瑜修改，这次修改的目的是第一个level参数设定的如果是字符串，那么
+	*                    检测对象对象存在位置
 	*@param {String}  resultType 为空返回对应的函数，否则返回的是所有堆栈
 	*@memberOf FW
 	*@description 提供一个获取函数调用者的方法
 	*/
 	_obj.getCaller = function(level,resultType){
 		var levelLen =  1;
+		var attr = null;
 		if (level != null){
-			levelLen = level;
+			if (/string/i.test(typeof(level))){
+				attr = level;
+				levelLen = 100;
+			}else{
+				levelLen = level;
+			}
+			
 		}
 		var stack = [];
 	    var fun = _obj.getCaller;
@@ -1556,6 +1905,9 @@ define(function(require, exports, module) {
 	    for (var i=0;i<=levelLen&&fun!=null;i++) {	    	
 	        stack.push(fun);
 	        result = fun;
+			if (attr && fun[attr]){
+				break;
+			}
 	        fun = fun.caller;
 	    }
 	    if (resultType == null){

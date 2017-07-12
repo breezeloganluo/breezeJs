@@ -187,18 +187,6 @@ define(function(require, exports, module) {
 	 * FW.use().toJSONString({name:'alec'});
 	 */
 	_result.toJSONString = function(object){
-		function deleteNull(object){
-			for(var i in object){
-				if(object[i]!=null&&typeof(object[i])=="object"){
-					deleteNull(object[i]);
-				}
-				if(object[i]==null){
-					object[i] = "";
-					delete object[i];
-				}
-			}
-		}
-		deleteNull(object);
 		return APICtr.JsonAPI.toJSONString(object);
 	}
 	
