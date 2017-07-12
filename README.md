@@ -14,7 +14,7 @@ Breeze由众联无限技术有限公司提供完整版本，框架是包含了�
 http://weima.joinlinking.com/page/stylepc/frontcms/index.jsp
 我们的官方qq群是：437239918
 有如果发现问题，请联系我logan@joinlinking.com或在git上提问
-#历史概要记录
+# 历史概要记录
 2016-10-17
 gadget公有方法增加了代理机制，可以外部不变功能情况下，抓取出所有公有方法的输入参数，输出参数，而且还可以通过模拟跳过所有公有函数
 2016-09-18
