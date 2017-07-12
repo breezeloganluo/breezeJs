@@ -40,11 +40,11 @@ define(function(require, exports, module) {
 		var url = window.location.toString();
 		//2014-05-28 罗光瑜修改 某些IE浏览器url地址是不进行中文转换的，这时取参数正则要修改
 		//2014年8月13日 16:12:47 程明剑 添加支持type参数
-		var execResult = (new RegExp(__pName+"=([^&#]+)|"+__pName+"_([^*&.-]+)")).exec(url);
+		var execResult = (new RegExp("\\W"+__pName+"=([^&#]+)")).exec(url);
 		if (execResult){
 			//2014年1月14日 20:46:56 程明剑 添加URL解密
 			//2014年8月13日 16:13:04 程明剑 判断是正常参数还是type参数
-			var result = execResult[1] == null ?execResult[2]:execResult[1];
+			var result = execResult[1];
 			return decodeURIComponent(result);
 		}
 		return null;

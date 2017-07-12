@@ -3,8 +3,9 @@
 	<PatchDir>dest/breezeJs_patch.zip</PatchDir>
 	<DocDir>dest/breezeJs_doc.zip</DocDir>
 	<Type>BreezeJs</Type>
-	<Version>1.54</Version>
+	<Version>1.56</Version>
 	<VersionDesc>
-	  所有gadget公有方法支持外部进行监控数据转向，这样调试维护非常方便
+	  lang.getParameter函数有一个重大bug修复了
+	  另外show方法在标签中增加了名称处理
 	</versionDesc>
 <description>

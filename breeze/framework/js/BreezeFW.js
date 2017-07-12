@@ -79,6 +79,7 @@
 * @version 0.86 2016-10-08罗光瑜修改 那天加的回调函数索引应该是从真正回调的函数开始的，而这里的回调函数是从函数第n个参数开始
 * @version 0.87 2016-10-11罗光瑜修改 如果模拟的回调函数输入是null，那么要填入$null而不是空
 * @version 0.88 2016-10-17罗光瑜修改 如果是匿名函数调用father，那么找不到被调函数，这个时候要手动指定调用函数
+* @version 0.89 2017-07-06罗光瑜修改 show函数把对应的视图id和gadget名写入标签，便于调试
 */ 
 
 /**
@@ -329,7 +330,7 @@ define(function(require, exports, module) {
 			}
 			var target= tmpDom;
 			target&&target.show();
-			if (__target &&  __target!='_'){
+			if (__target &&  __target!='_' && __target!='-'){
 				target = tmpDom.find(__target);
 				if (!target || target.length == 0){
 					target = tmpDom.find("#"+__target);
@@ -393,7 +394,9 @@ define(function(require, exports, module) {
 				return a+d+c+d+e;
 			});
 			//2014-08-07 罗光瑜修改，show方法如果是target是_那么不会被输出
-			if (__target != "_"){
+			if (__target != "_" && __target != "-" ){
+				var vid = _$app.view[__viewId] && __viewId || "nullid";
+				target.attr("viewInfo",_$app.id+"."+vid);
 				if (!method){
 					target.html(htmlStr);
 				    target.show();

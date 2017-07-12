@@ -45,6 +45,9 @@ define(function(require, exports, module) {
 			},
 			"ccc":function(){
 				return 99;
+			},
+			"getMyValue":function (){
+				return this.MY.myValue;
 			}
         }
 

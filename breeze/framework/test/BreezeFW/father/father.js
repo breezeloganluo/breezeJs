@@ -32,7 +32,10 @@ define(function(require, exports, module) {
             },
 			"ffa": function(p1) {
 				return p1+this.API.father("ffa",p1);
-            }
+            },
+			"setMyValue":function(myValue){
+				this.MY.myValue = myValue;
+			}
         },
 		"private" : {
 			"p1":function(){

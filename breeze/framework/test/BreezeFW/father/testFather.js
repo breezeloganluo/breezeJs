@@ -65,6 +65,11 @@ define(function(require, exports, module) {
 			//测试匿名函数的调用
 			var result = app.nmfa();
 			JSTest.assertEquals(1, result, "匿名函数中调用father的情况");
+			
+			//测试获取父类的this.MY参数
+			app.setMyValue("myValue");
+			var result = app.getMyValue();
+			JSTest.assertEquals("myValue",result,"测试父类的this.MY的设置")
         }
     });
     return JSTest;
